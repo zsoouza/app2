@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── User ─────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  subjects Subject[]
+  sessions StudySession[]
+  goals    Goal[]
+
+  @@map("users")
+}
+
+// ─── Subject (Matéria) ────────────────────────────────────────────────────────
+
+model Subject {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  createdAt DateTime @default(now())
+
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topics   Topic[]
+  sessions StudySession[]
+
+  @@unique([userId, name])
+  @@map("subjects")
+}
+
+// ─── Topic (Assunto) ──────────────────────────────────────────────────────────
+
+model Topic {
+  id        String   @id @default(cuid())
+  subjectId String
+  name      String
+  createdAt DateTime @default(now())
+
+  subject  Subject        @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  sessions StudySession[]
+
+  @@unique([subjectId, name])
+  @@map("topics")
+}
+
+// ─── StudySession ─────────────────────────────────────────────────────────────
+
+model StudySession {
+  id              String      @id @default(cuid())
+  userId          String
+  subjectId       String
+  topicId         String?
+  type            SessionType
+  startTime       DateTime
+  endTime         DateTime?
+  durationMinutes Int?
+  createdAt       DateTime    @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject Subject  @relation(fields: [subjectId], references: [id])
+  topic   Topic?   @relation(fields: [topicId], references: [id])
+  note    Note?
+
+  // Placeholder para revisão espaçada futura
+  // reviews Review[]
+
+  @@map("study_sessions")
+}
+
+enum SessionType {
+  TEORIA
+  EXERCICIOS
+  REVISAO
+}
+
+// ─── Note ─────────────────────────────────────────────────────────────────────
+
+model Note {
+  id           String   @id @default(cuid())
+  sessionId    String   @unique
+  content      String   // "O que você aprendeu?"
+  difficulties String?  // "Onde travou?"
+  keyPoints    String?  // "Fórmulas/ideias principais"
+  createdAt    DateTime @default(now())
+
+  session StudySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("notes")
+}
+
+// ─── Goal (Meta) ──────────────────────────────────────────────────────────────
+
+model Goal {
+  id          String     @id @default(cuid())
+  userId      String
+  type        GoalType
+  targetValue Int        // ex.: 90 (minutos) ou 10 (sessões)
+  period      GoalPeriod
+  createdAt   DateTime   @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("goals")
+}
+
+enum GoalType {
+  DAILY_MINUTES    // minutos de estudo por dia
+  WEEKLY_SESSIONS  // sessões por semana
+}
+
+enum GoalPeriod {
+  DAILY
+  WEEKLY
+}
+
+// ─── Review (futuro — revisão espaçada) ──────────────────────────────────────
+// Deixado comentado como placeholder para implementação futura
+//
+// model Review {
+//   id          String       @id @default(cuid())
+//   sessionId   String
+//   scheduledAt DateTime
+//   completedAt DateTime?
+//   quality     Int?         // 0-5 (algoritmo SM-2)
+//   interval    Int          // dias até próxima revisão
+//   easeFactor  Float        @default(2.5)
+//   createdAt   DateTime     @default(now())
+//
+//   session StudySession @relation(fields: [sessionId], references: [id])
+// }
